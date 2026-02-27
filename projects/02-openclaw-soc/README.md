@@ -143,3 +143,50 @@ This project is being built in phases to simulate real-world SOC deployment matu
 This lab is designed not just as a learning project, but as a professional SOC architecture showcase.
 
 ---
+
+## 🧾 Evidence — SOC Pipeline Validation
+
+### 1️⃣ Infrastructure Running (Proxmox)
+
+![Proxmox VM Status](./evidence/proxmox-vm-status.png)
+
+**Proves:**
+- SOC-MGMT (VM 200) running
+- Elastic Node (VM 201) running
+- Ubuntu Endpoint (VM 202) running
+
+---
+
+### 2️⃣ Elastic Agent Healthy (Fleet)
+
+![Fleet Agent Healthy](./evidence/fleet-agent-healthy.png)
+
+**Proves:**
+- Ubuntu endpoint successfully enrolled
+- Agent policy applied
+- Agent communicating with Elastic
+- Logs & metrics enabled
+
+---
+
+### 3️⃣ Logs Ingested (Discover — logs-*)
+
+![Logs Visible](./evidence/logs-visible-discover.png)
+
+**Proves:**
+- Logs successfully indexed
+- Data view operational
+- Host-based filtering works
+- Real-time ingestion confirmed
+
+---
+
+### 4️⃣ Security Telemetry (system.auth)
+
+![Security Auth Logs](./evidence/security-auth-logs-discover.png)
+
+**Proves:**
+- Authentication events captured
+- Successful and session events visible
+- SOC visibility into endpoint activity
+- Security-relevant telemetry operational
