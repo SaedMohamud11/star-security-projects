@@ -1,6 +1,6 @@
 # STAR Security Projects — Saed Mohamud
 
-Curated **7–12 STAR-documented** projects across AWS + Proxmox, focused on monitoring, detections, investigations, and incident response.
+**7–12 STAR-documented** projects across AWS + Proxmox, focused on monitoring, detections, investigations, and incident response.
 
 ## Projects
 - [01-adguard](projects/01-adguard/) — DNS filtering & DHCP migration 
