@@ -1,314 +1,210 @@
 # Phase 03 – AI Triage Layer Integration
 
-## Objective
+## 1. Phase Objective
 
-Integrate a custom AI-assisted triage layer on top of the validated Elastic detection stack built in Phases 01 and 02.
+Integrate a controlled AI-assisted triage layer on top of the validated Elastic detection environment built in Phases 01 and 02.
 
-This phase focuses on:
+The purpose of this phase was to take already validated Elastic alerts and make them more readable and usable for first-pass analyst review. Instead of replacing Elastic or pretending the AI model was making security decisions, this phase focused on a narrower and more realistic problem: turning raw alert output into concise analyst-oriented explanations, investigation notes, and triage-friendly summaries.
 
-- Querying Elastic alerts directly from the SOC management node
-- Enriching alert output with structured Python logic
-- Using OpenAI `gpt-4o-mini` for concise SOC-oriented explanations
-- Preventing duplicate alert notifications through SQLite state tracking
-- Creating command-driven analyst outputs for rapid triage
-- Proving end-to-end alert retrieval and AI explanation generation
-
-This phase does not introduce autonomous decision-making or case closure logic.
-
-The goal is to create a controlled AI triage assistant that helps interpret detection output while keeping the human analyst as the final authority.
+This phase established the first version of the custom SOC assistant layer. It introduced alert polling, duplicate suppression through SQLite, OpenAI-assisted explanation generation, and reusable triage functions that could later be exposed through a reporting interface.
 
 ---
 
-## AI Triage Environment Overview
+## 2. Environment Overview at the Time of the Phase
 
-The AI triage layer was implemented on **VM 200 – SOC-MGMT** and connected to **VM 201 – Elastic Node** over the internal lab network.
+At the time of this phase, the lab environment consisted of:
 
-### Core Components
+- **VM 200 – soc-mgmt**  
+  Hosted the Python triage code, local SQLite state tracking, and application logic used to query Elastic and generate readable outputs
+
+- **VM 201 – elastic-node**  
+  Hosted Elasticsearch, Kibana, and the validated detection rules from Phase 02
+
+- **VM 202 – ubuntu-endpoint-1**  
+  Generated the underlying endpoint activity that led to the alerts being triaged
+
+### Core components used in this phase
 
 - **Python 3**
 - **OpenAI API**
 - **Model:** `gpt-4o-mini`
-- **Elasticsearch REST queries over HTTPS**
-- **SQLite local tracking database**
-- **Custom Python script:** `elastic_poller.py`
+- **Elasticsearch HTTPS queries**
+- **SQLite**
+- **Custom Python scripts**
+  - `elastic_poller.py`
+  - `soc_bot.py`
 
-### Data Sources Queried
+### Data sources queried
 
-- Alert index: `.alerts-security.alerts-default`
-- Log index pattern: `logs-*`
+- **Alert index:** `.alerts-security.alerts-default`
+- **Log index pattern:** `logs-*`
 
-### Purpose of the Triage Layer
-
-The triage layer converts raw Elastic detections into readable SOC outputs by:
-
-1. Pulling current or recent alert data from Elasticsearch
-2. Extracting key fields such as rule name, severity, host, timestamp, message, source IP, and user
-3. Sending structured prompt context to OpenAI
-4. Returning short, readable analyst-style output for operator review
+This phase depended entirely on the work from the earlier phases. The environment already had a functioning Elastic pipeline and a validated set of Linux detections. The triage layer therefore operated on top of real alert data instead of mocked examples.
 
 ---
 
-## Design Philosophy
+## 3. Design Philosophy
 
-AI triage must be:
+This phase followed a controlled-assistance model.
 
-- Controlled
-- Explainable
-- Evidence-driven
-- Non-destructive
-- Human-reviewed
+The AI was not treated as a detection engine, case manager, or decision-maker. Elastic remained the source of truth for alert generation, while the AI layer was introduced strictly to improve readability and triage usability.
 
-The model is not used as a source of truth.
+The design principles were:
 
-Instead, Elastic remains the source of truth, and the AI layer is used strictly to:
+- **ground the model in real alert data**
+- **separate detection from explanation**
+- **preserve human review as the final authority**
+- **avoid duplicate operator noise**
+- **keep outputs concise and operationally useful**
 
-- summarize
-- explain
-- organize
-- prioritize analyst attention
-
-This prevents the project from overstating AI autonomy and keeps the workflow aligned to realistic SOC operations.
-
-> Principle: AI may assist triage, but validated detections remain the foundation of the SOC.
+That meant the triage layer had one job: help interpret and package validated alert data in a way that better supports analyst review.
 
 ---
 
-## Core Triage Functions Implemented
+## 4. Definition of What Makes the Phase Done
 
-The following functions were implemented inside `elastic_poller.py`.
+Phase 03 is considered complete only when all of the following are true:
 
-### `check_alerts()`
+- the SOC management node can query Elastic alerts successfully
+- recent endpoint event context can be retrieved from `logs-*`
+- OpenAI-assisted explanations are generated from real alert data
+- duplicate alert reporting is suppressed through SQLite tracking
+- the triage functions return readable and repeatable outputs
+- the implementation is evidenced through script execution, project files, and generated analyst-style responses
 
-Purpose:
-
-- Retrieve currently open alerts from Elastic
-- Compare returned alert IDs against the SQLite notification database
-- Return only alerts that are still open and have not already been reported
-
-Operational value:
-
-- Prevents repeated noise in analyst messaging
-- Preserves state across alert checks
-- Simulates basic alert memory for triage workflow
+This standard matters because AI integration is only useful if it is connected to working detections, produces grounded outputs, and behaves predictably.
 
 ---
 
-### `last_alert()`
+## 5. Validation Commands or Tests
 
-Purpose:
+The following checks were used to validate the triage layer introduced in this phase.
 
-- Pull the most recent alert from Elastic
-- Extract rule, severity, host, status, process, user, source IP, and message
-- Generate a concise AI explanation suitable for quick analyst review
+### Test 1 — Confirm triage project files exist on the SOC management node
 
-Operational value:
+Reviewed the SOC management node project directory to verify that the working triage components were present.
 
-- Provides a readable explanation of the latest detection
-- Helps translate raw alert fields into analyst-ready wording
+**Relevant files**
+- `elastic_poller.py`
+- `soc_bot.py`
+- `processed_alerts.db`
+- virtual environment and supporting files
 
----
+**What this validated**
+- the triage layer existed as a real implementation on the management node
+- the project had moved beyond planning into executable code
 
-### `investigate()`
+### Test 2 — Confirm the bot application can run successfully
 
-Purpose:
+Executed the bot application on the SOC management node and confirmed the Flask service started successfully.
 
-- Pull the latest alert from Elastic
-- Ask the AI model to generate a short analyst note with investigation guidance
+**What this validated**
+- the application layer could start without immediate runtime failure
+- the triage logic was available to a calling interface
+- the management node was ready to serve the next integration step
 
-Operational value:
+### Test 3 — Confirm WhatsApp POST requests reach the application
 
-- Produces fast first-pass investigation support
-- Suggests next validation steps without claiming final judgment
+Verified successful `POST /whatsapp` requests returning `200 OK`.
 
----
+**What this validated**
+- the application path from webhook request to bot handler was functioning
+- the triage functions could be invoked through an external command path
+- the bot was actually responding rather than just running idle
 
-### `soc_summary()`
+### Test 4 — Confirm latest alert explanation workflow
 
-Purpose:
+Used the `last alert` workflow to retrieve the most recent Elastic alert and generate a readable explanation.
 
-- Pull recent alerts and recent endpoint events from the last 24 hours
-- Generate a concise AI-written SOC summary for operator visibility
+**What this validated**
+- alert retrieval from Elastic was functioning
+- key alert fields were being extracted correctly
+- the AI model returned a concise, analyst-friendly explanation grounded in real alert context
 
-Operational value:
+### Test 5 — Confirm investigation workflow
 
-- Creates a management-style summary from both alerts and endpoint activity
-- Bridges tactical detections to broader operational awareness
+Used the `investigate` workflow to generate a short analyst-style note for the latest alert.
 
----
+**What this validated**
+- the triage layer could move beyond a simple summary into investigation support
+- the AI output could provide next-step guidance without claiming final judgment
+- the implementation supported recommendation-only analyst assistance
 
-## SQLite Alert Memory
+### Test 6 — Confirm high-level triage pipeline logic
 
-A local SQLite database was introduced to prevent duplicate alert notifications.
+Validated the intended flow from endpoint activity to Elastic alert to poller logic, SQLite memory check, AI explanation generation, and returned output.
 
-### Database File
-
-`processed_alerts.db`
-
-### Table Used
-
-`notified_alerts`
-
-### Stored Fields
-
-- `alert_id`
-- `notified_at`
-- `rule_name`
-- `host_name`
-- `severity`
-
-### Operational Purpose
-
-This database allows the triage layer to remember which alerts have already been surfaced to the operator.
-
-Without this memory layer, repeated polling would resend the same alert output and reduce usability.
+**What this validated**
+- the triage layer architecture was defined clearly
+- duplicate suppression and AI explanation were part of the intended workflow
+- the phase had a coherent operating design rather than isolated script behavior
 
 ---
 
-## High-Level Triage Flow
+## 6. Evidence Collection / Screenshots
 
-    Endpoint activity
-        ↓
-    Elastic Agent
-        ↓
-    Elasticsearch logs
-        ↓
-    Detection rules trigger alerts
-        ↓
-    elastic_poller.py queries alerts
-        ↓
-    Alert checked against SQLite memory
-        ↓
-    If new → send to AI analysis
-        ↓
-    AI generates SOC explanation
-        ↓
-    Output returned to calling application
+### 6.1 Triage flow design
 
----
+![AI Triage Flow](../evidence/phase-03-ai-triage-layer-integration/phase03-ai-triage-flow.png)
 
-## Definition of Done (Phase 03)
+**What this proves**
+- the triage pipeline was designed as a structured workflow
+- alert polling, SQLite checking, AI analysis, and returned output were all accounted for in the architecture
 
-Phase 03 is complete only when the following are verified:
+### 6.2 Project files on SOC management node
 
-### Elastic-to-Triage Connectivity
+![SOC Management Project Files](../evidence/phase-03-ai-triage-layer-integration/phase03-soc-mgmt-project-files.png)
 
-- SOC-MGMT can successfully query Elasticsearch
-- Alert data is returned from `.alerts-security.alerts-default`
-- Relevant endpoint event data is returned from `logs-*`
-- No blocking connectivity issue exists between VM 200 and VM 201
+**What this proves**
+- the triage layer existed as actual implementation files on the management node
+- the poller, bot logic, and SQLite database were present in the project workspace
 
-### AI Triage Functionality
+### 6.3 Bot application running
 
-- OpenAI API authentication works from the SOC-MGMT node
-- `gpt-4o-mini` returns readable SOC explanations
-- Output is cleaned into WhatsApp-friendly plain text
-- Alert summaries remain concise and understandable
+![SOC Bot Running](../evidence/phase-03-ai-triage-layer-integration/phase03-soc-bot-running.png)
 
-### State Tracking Verified
+**What this proves**
+- the application started successfully
+- the triage layer was operational and reachable through the Flask service
 
-- SQLite database is created successfully
-- Alert IDs are recorded after notification
-- Previously reported open alerts are not repeatedly re-sent
-- New open alerts still surface correctly
+### 6.4 Successful WhatsApp POST requests
 
-### Command Logic Verified
+![WhatsApp POST 200 OK](../evidence/phase-03-ai-triage-layer-integration/phase03-whatsapp-post-200ok.png)
 
-- `check_alerts()` returns current open alert state
-- `last_alert()` returns the latest alert explanation
-- `investigate()` returns a short analyst note
-- `soc_summary()` returns a recent SOC environment briefing
+**What this proves**
+- inbound requests were reaching the bot successfully
+- the application path invoking the triage layer was functioning end to end
+
+### 6.5 Latest alert response
+
+![Last Alert Response](../evidence/phase-03-ai-triage-layer-integration/phase03-last-alert-response.png)
+
+**What this proves**
+- the bot could retrieve the latest alert from Elastic
+- the AI layer could turn alert fields into a readable summary for analyst review
+
+### 6.6 Investigation response
+
+![Investigate Response](../evidence/phase-03-ai-triage-layer-integration/phase03-investigate-response.png)
+
+**What this proves**
+- the triage layer could produce a short analyst-style investigation note
+- the output remained recommendation-oriented rather than autonomous
 
 ---
 
-## Validation Steps
+## 7. Engineering Discipline Note
 
-The following checks were used to validate the AI triage layer.
+This phase was important because it set boundaries around what the AI layer was allowed to do.
 
-### Test 01 – Elastic Alert Retrieval
+It would have been easy to overstate the implementation as an “AI SOC analyst,” but that would have been inaccurate. What was actually built here was more disciplined and more credible: a custom triage support layer that reads validated Elastic detections, suppresses duplicates, and produces readable analyst-oriented output.
 
-Validate that `elastic_poller.py` can retrieve alerts from the Elastic alert index.
+That boundary is what makes the phase strong:
 
-Expected Result:
-- Alert data is returned successfully
-- No authentication or query failure occurs
-- Recent alert fields are visible to the script
+- Elastic still owns alert generation
+- the AI layer assists interpretation only
+- duplicate suppression improves usability
+- human review remains mandatory
 
----
+By the end of this phase, the project had moved beyond detection alone and into analyst-assist workflow improvement, while still keeping the system honest about what was automated and what was not.
 
-### Test 02 – Recent Endpoint Event Retrieval
-
-Validate that recent endpoint activity can be pulled from `logs-*`.
-
-Expected Result:
-- Recent `system.auth` or `system.syslog` events are returned
-- Event messages are available for AI summarization
-- Host context is preserved
-
----
-
-### Test 03 – Latest Alert Explanation
-
-Trigger or reference a recent Elastic alert and run the latest alert workflow.
-
-Expected Result:
-- The AI returns a readable explanation of the alert
-- Output includes host and alert context
-- Response is concise and operationally useful
-
----
-
-### Test 04 – Investigation Output
-
-Run the investigation workflow on the latest alert.
-
-Expected Result:
-- The AI returns a short analyst-style note
-- Output includes suggested next review steps
-- The response remains recommendation-only
-
----
-
-### Test 05 – Duplicate Alert Suppression
-
-Run repeated alert checks against the same open alert set.
-
-Expected Result:
-- Previously reported alert IDs are not re-sent
-- Only new open alerts appear in subsequent checks
-- SQLite state persists correctly
-
----
-
-## Evidence Collection
-
-Evidence for Phase 03 must include the following:
-
-- Screenshot of `soc_bot.py` or related service calling the triage layer successfully
-- Screenshot showing successful POST requests to `/whatsapp`
-- Screenshot of `last alert` response
-- Screenshot of `investigate` response
-- Screenshot or diagram of the triage flow from Elastic alert to AI explanation
-- Screenshot showing the project files on the SOC management node if needed for implementation proof
-
-All evidence files are stored in:
-
-    projects/02-ai-assisted-soc-lab/evidence/phase-03-ai-triage-layer-integration/
-
----
-
-## Engineering Discipline Note
-
-Phase 03 is not considered complete just because an LLM response appears on screen.
-
-It is complete only when:
-
-- Elastic detections are already validated
-- AI output is grounded in actual retrieved alert data
-- Duplicate notification behavior is controlled
-- Triage output is readable and operationally useful
-- Human review remains the final decision point
-- Evidence is documented and stored
-
-AI assistance without validated detection logic is theater.
-
-Validated detections plus controlled AI triage is an actual SOC workflow improvement.
