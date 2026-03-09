@@ -177,7 +177,7 @@ This lab is intended to grow from a strong analyst-assist workflow into a broade
 - more formalized analyst review checkpoints
 - scheduled reporting with clearer severity rollups
 - additional endpoints and broader detection coverage
-- production-style hardening of the reporting and webhook layer
+- hardening the reporting and webhook layer for more production-like reliability
 
 The long-term goal is to demonstrate not just tool familiarity, but disciplined SOC engineering: visibility first, detections second, controlled automation third, and clear documentation throughout.
 
