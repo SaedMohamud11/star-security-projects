@@ -1,44 +1,51 @@
 # AI-Assisted SOC Lab
 
-A home SOC environment built on **Elastic SIEM** with a **custom AI triage and reporting layer** powered by **OpenAI**, supporting alert triage, investigation assistance, and executive-style reporting through WhatsApp.
+A portfolio project demonstrating how a Security Operations Center workflow can be built in a controlled lab environment using **Elastic SIEM**, **custom Python automation**, and an **AI-assisted triage and reporting layer**. The lab ingests endpoint telemetry, generates detections, enriches alerts with readable analyst context, and exposes executive-style reporting through WhatsApp.
 
 ---
+
 ## 1️⃣ Situation
 
-Traditional Security Operations Centers (SOCs) rely heavily on manual triage, repetitive alert review, and slow operator workflows.
+Security Operations Centers depend on visibility, repeatable detections, and disciplined analyst workflows. In many environments, however, alert review is still slowed down by repetitive triage steps, fragmented tooling, and reporting that is not easily consumable outside the analyst console.
 
-I built this lab to simulate a modern AI-assisted SOC environment capable of structured detection, triage support, investigation assistance, and executive reporting.
+I built this project to simulate a structured SOC workflow in a self-hosted lab where endpoint activity is collected, detections are engineered and validated, and a custom AI-assisted layer helps translate raw alert data into readable investigation support and operator-facing summaries.
 
-This environment runs inside my self-hosted Proxmox home lab.
-
-### Infrastructure
-
-- **Proxmox VE Host**
-- **VM 200** – SOC Management Node (Python automation + AI triage + reporting)
-- **VM 201** – Elastic SIEM Node
-- **VM 202** – Ubuntu Endpoint (primary log source)
-- **Elastic Stack (Fleet + Kibana)**
-- **Custom AI Triage & Reporting Layer**
-- **Twilio WhatsApp Integration**
-- **ngrok HTTPS Tunnel for webhook testing**
+The project runs inside my Proxmox-based lab and is documented phase by phase to show not only the final outcome, but the engineering process used to reach it.
 
 ---
+
 ## 2️⃣ Task
 
-Design and implement a structured, AI-assisted SOC workflow that includes:
+Design and implement a lab-based SOC workflow that demonstrates:
 
-- Centralized log ingestion from endpoint to Elastic
-- Detection engineering for security-relevant endpoint activity
-- AI-assisted alert triage and readable investigation output
-- Executive-style SOC summaries delivered through WhatsApp
-- Portfolio-ready documentation and evidence tracking
+- centralized endpoint log ingestion into Elastic
+- visibility into security-relevant Linux telemetry
+- custom detection engineering for meaningful endpoint activity
+- AI-assisted alert triage and investigation support
+- command-driven executive reporting through WhatsApp
+- evidence-backed documentation suitable for portfolio review
 
-The objective is not just detection, but operational workflow improvement through controlled AI assistance.
+The goal was not to build “AI for the sake of AI,” but to show how AI can be placed behind a disciplined SOC workflow as a recommendation and reporting layer while Elastic remains the source of truth for detections and alerts.
 
 ---
-## 3️⃣ Architecture Overview
 
-### Log and Response Flow
+## 3️⃣ Architecture
+
+### Environment Components
+
+- **Proxmox VE Host**
+- **VM 200 – SOC Management Node**  
+  Hosts the Python automation, Flask webhook, AI-assisted triage logic, and reporting workflows
+- **VM 201 – Elastic Node**  
+  Hosts the Elastic stack used for log ingestion, search, detection rules, and alerting
+- **VM 202 – Ubuntu Endpoint**  
+  Primary endpoint generating system and authentication telemetry
+- **Elastic Stack (Fleet, Elasticsearch, Kibana)**
+- **Custom Python SOC assistant layer**
+- **Twilio WhatsApp integration**
+- **ngrok HTTPS tunnel for webhook testing**
+
+### Alert and Reporting Flow
 
     Endpoint activity
         ↓
@@ -60,179 +67,117 @@ The objective is not just detection, but operational workflow improvement throug
         ↓
     Twilio sends WhatsApp message
         ↓
-    User receives SOC alert
+    User receives SOC output
 
-This architecture separates responsibilities clearly:
+### Architecture Responsibilities
 
-- **Detection** → Elastic SIEM
-- **Triage Assistance** → `elastic_poller.py` + OpenAI API
-- **State Tracking** → SQLite alert memory
-- **Operator Interaction** → Flask webhook + Twilio WhatsApp
-- **Executive Reporting** → AI-generated SOC summary workflow
+- **Visibility and detection** → Elastic SIEM
+- **Alert polling and deduplication** → `elastic_poller.py` + SQLite
+- **Readable alert analysis** → OpenAI-assisted triage logic
+- **Operator interaction** → Flask webhook + Twilio WhatsApp
+- **Executive-style reporting** → command-based summary and alert response workflow
 
----
-## 4️⃣ Implemented AI Workflow
+### Engineering Boundaries
 
-### 🔹 AI Triage Layer
+This is a **lab implementation**, not a production SOC platform. The AI layer is recommendation-only and does not:
+- close alerts
+- modify rule severity
+- replace analyst judgment
+- replace formal case management
 
-Responsibilities:
-
-- Query open and recent alerts from Elastic
-- Retrieve recent endpoint event context from `logs-*`
-- Generate readable explanations for alerts using `gpt-4o-mini`
-- Produce short investigation notes for analyst review
-- Prevent duplicate alert reporting through SQLite tracking
-
-Restrictions:
-
-- Does not close cases
-- Does not change alert severity
-- Does not override Elastic as the source of truth
-- Produces recommendations only
+Elastic remains the detection source of truth, and the human analyst remains the final decision-maker.
 
 ---
 
-### 🔹 Executive Reporting Layer
+## 4️⃣ Phases Implemented
 
-Responsibilities:
+This project was built in four phases to reflect a realistic security engineering progression: first establish infrastructure and visibility, then build detections, then add triage support, then add operator-facing reporting.
 
-- Receive inbound WhatsApp commands through Twilio
-- Route commands through Flask webhook logic
-- Return:
-  - `check alerts`
-  - `soc summary`
-  - `last alert`
-  - `investigate`
-- Deliver concise security summaries in mobile-friendly format
-- Split long responses safely for readability
+### Phase 1 — Infrastructure
 
-Restrictions:
+Established the core lab environment and verified that the Ubuntu endpoint was enrolled, healthy, and sending security-relevant logs into Elastic.
 
-- Does not make final analyst decisions
-- Does not replace case management
-- Acts as a reporting and interaction layer only
+**Key evidence**
 
-> Human analyst remains the final decision authority.
+![Proxmox VM Status](./evidence/phase-01-infrastructure/proxmox-vm-status.png)
 
----
-## 5️⃣ Current Phase Progress
+![Fleet Agent Healthy](./evidence/phase-01-infrastructure/fleet-agent-healthy.png)
 
-- **Phase 1:** Infrastructure stabilization (Proxmox + VM setup)
-- **Phase 2:** Elastic integration and detection engineering
-- **Phase 3:** AI triage layer integration
-- **Phase 4:** Executive reporting automation
+![Security Auth Logs](./evidence/phase-01-infrastructure/security-auth-logs-discover.png)
 
-This project is being built in phases to reflect realistic SOC maturity: first visibility, then detections, then triage support, then operator-facing reporting.
+**Detailed phase write-up**  
+See: `./phases/phase-01-infrastructure.md`
 
 ---
 
-## 6️⃣ Skills Demonstrated
+### Phase 2 — Detection Engineering
 
-- SIEM deployment and configuration (Elastic Stack)
-- Endpoint log ingestion and telemetry flow design
-- Detection engineering for Linux security events
-- Virtualization and lab architecture (Proxmox)
+Created and validated custom Linux detection rules for suspicious user creation, sudo group modification, privilege escalation behavior, SSH brute force activity, and brute force followed by successful login.
+
+**Detailed phase write-up**  
+See: `./phases/phase-02-detection-engineering.md`
+
+---
+
+### Phase 3 — AI Triage Layer Integration
+
+Integrated a custom Python-based AI triage layer that polls Elastic alerts, suppresses duplicates with SQLite, generates readable analyst notes, and supports investigation-oriented output.
+
+**Key evidence**
+
+![AI Triage Flow](./evidence/phase-03-ai-triage-layer-integration/phase03-ai-triage-flow.png)
+
+![SOC Bot Running](./evidence/phase-03-ai-triage-layer-integration/phase03-soc-bot-running.png)
+
+![Latest Alert Response](./evidence/phase-03-ai-triage-layer-integration/phase03-last-alert-response.png)
+
+**Detailed phase write-up**  
+See: `./phases/phase-03-ai-triage-layer-integration.md`
+
+---
+
+### Phase 4 — Executive Reporting Automation
+
+Extended the triage layer into a mobile-friendly operator reporting workflow using Flask, ngrok, Twilio WhatsApp, and command-driven outputs such as `check alerts`, `last alert`, `investigate`, and `soc summary`.
+
+**Key evidence**
+
+![ngrok Forwarding](./evidence/phase-04-executive-reporting-automation/phase04-ngrok-forwarding.png)
+
+![WhatsApp Check Alerts](./evidence/phase-04-executive-reporting-automation/phase04-whatsapp-check-alerts.png)
+
+![WhatsApp SOC Summary](./evidence/phase-04-executive-reporting-automation/phase04-whatsapp-soc-summary.png)
+
+**Detailed phase write-up**  
+See: `./phases/phase-04-executive-reporting-automation.md`
+
+---
+
+## 5️⃣ Skills Demonstrated
+
+- Elastic SIEM deployment and telemetry validation
+- Endpoint log ingestion and data visibility verification
+- Linux-focused detection engineering
+- Alert validation and evidence-backed testing
 - Python automation for SOC workflows
-- OpenAI API integration for security triage support
-- SQLite-based state tracking for duplicate suppression
+- SQLite-based deduplication and state tracking
 - Flask webhook development
-- Twilio WhatsApp workflow integration
-- Executive-style reporting and documentation discipline
+- Twilio WhatsApp integration
+- AI-assisted alert enrichment and readable reporting
+- Structured technical documentation for portfolio presentation
 
 ---
 
-## 7️⃣ Long-Term Vision
+## 6️⃣ Long-Term Vision
 
-- Expand from command-based triage to broader analyst workflow automation
-- Add structured case management integration
-- Add deeper multi-step investigation support
-- Build human-reviewed closure workflow
-- Produce recurring executive security posture reports automatically
+This lab is intended to grow from a strong analyst-assist workflow into a broader security operations showcase. Future improvements may include:
 
-This lab is designed not just as a learning project, but as a professional SOC architecture showcase grounded in real implementation.
+- stronger case-management integration
+- richer multi-step investigation workflows
+- more formalized analyst review checkpoints
+- scheduled reporting with clearer severity rollups
+- additional endpoints and broader detection coverage
+- production-style hardening of the reporting and webhook layer
 
----
+The long-term goal is to demonstrate not just tool familiarity, but disciplined SOC engineering: visibility first, detections second, controlled automation third, and clear documentation throughout.
 
-## 🧾 Evidence — SOC Pipeline Validation
-
-### 1️⃣ Infrastructure Running (Proxmox)
-
-![Proxmox VM Status](./evidence/proxmox-vm-status.png)
-
-**Proves:**
-- SOC-MGMT (VM 200) running
-- Elastic Node (VM 201) running
-- Ubuntu Endpoint (VM 202) running
-
----
-
-### 2️⃣ Elastic Agent Healthy (Fleet)
-
-![Fleet Agent Healthy](./evidence/fleet-agent-healthy.png)
-
-**Proves:**
-- Ubuntu endpoint successfully enrolled
-- Agent policy applied
-- Agent communicating with Elastic
-- Logs & metrics enabled
-
----
-
-### 3️⃣ Logs Ingested (Discover — logs-*)
-
-![Logs Visible](./evidence/logs-visible-discover.png)
-
-**Proves:**
-- Logs successfully indexed
-- Data view operational
-- Host-based filtering works
-- Real-time ingestion confirmed
-
----
-
-### 4️⃣ Security Telemetry (system.auth)
-
-![Security Auth Logs](./evidence/security-auth-logs-discover.png)
-
-**Proves:**
-- Authentication events captured
-- Successful and session events visible
-- SOC visibility into endpoint activity
-- Security-relevant telemetry operational
-
----
-
-### 5️⃣ Detection Engineering Validation
-
-See:
-- `./phases/phase-02-detection-engineering.md`
-
-**Proves:**
-- Detection logic was implemented and tested
-- Multiple security-relevant rules were validated
-- Alert generation from endpoint activity was confirmed
-
----
-
-### 6️⃣ AI Triage Layer Validation
-
-See:
-- `./phases/phase-03-ai-triage-layer-integration.md`
-
-**Proves:**
-- Elastic alerts can be queried from the SOC management node
-- AI-generated alert explanations were successfully produced
-- Investigation notes and summaries are grounded in real Elastic data
-- SQLite duplicate suppression logic was implemented
-
----
-
-### 7️⃣ Executive Reporting Validation
-
-See:
-- `./phases/phase-04-executive-reporting-automation.md`
-
-**Proves:**
-- WhatsApp command-driven SOC interaction was implemented
-- Flask, ngrok, Twilio, and Elastic were integrated end-to-end
-- Operator-facing executive summaries and alert outputs were delivered successfully
