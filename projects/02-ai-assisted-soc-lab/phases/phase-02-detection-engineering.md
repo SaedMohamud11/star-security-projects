@@ -1,251 +1,269 @@
 # Phase 02 – Detection Engineering
 
-## Objective
+## 1. Phase Objective
 
-Implement structured, production-style detection capabilities on top of the stabilized SOC infrastructure built in Phase 01.
+Build and validate the first meaningful detection layer on top of the infrastructure established in Phase 01.
 
-This phase focuses on:
+This phase focused on converting raw Linux endpoint telemetry into actionable security alerts inside Elastic Security. The goal was to move from basic visibility into deliberate detection engineering by creating custom rules, simulating relevant activity, validating alert output, and refining rule logic where necessary.
 
-- Enabling Elastic Security detection engine
-- Engineering multiple custom Linux detection rules
-- Simulating adversary behavior in a controlled lab environment
-- Validating alert generation end-to-end
-- Performing rule tuning to reduce false positives
-- Demonstrating real-world SOC detection workflow
-
-No AI orchestration is introduced in this phase. The goal is to establish reliable and validated detection capability before automation.
+No AI-assisted triage or reporting logic was introduced in this phase. The purpose here was narrower and foundational: prove that the lab could detect suspicious Linux activity in a controlled, evidence-backed way before any automation was added on top.
 
 ---
 
-## Detection Environment Overview
+## 2. Environment Overview at the Time of the Phase
 
-Detection capabilities were implemented using the Elastic Security application on the Elastic Node (VM 201).
+At the time of this phase, the environment consisted of:
 
-### Detection Engine
+- **VM 200 – soc-mgmt**  
+  Management node used to administer the project and document validation steps
 
-- Elastic Security enabled
-- Custom Query-based detection rules created
-- Data source index pattern: `logs-system.auth*`
-- Query language: KQL (Kibana Query Language)
+- **VM 201 – elastic-node**  
+  Elastic Security environment where custom detection rules were created, executed, and reviewed
 
-### Rule Execution Configuration
+- **VM 202 – ubuntu-endpoint-1**  
+  Monitored Linux endpoint generating the events used for rule testing and alert validation
 
-- Execution interval: 1 minute
-- Look-back window: 1 minute
-- Maximum alerts per execution: 100
+### Detection stack in use
 
-This configuration enables near real-time alerting while maintaining controlled execution and manageable alert volume.
+- **Elastic Security** for rule creation and alerting
+- **Kibana** for rule configuration review and alert validation
+- **Discover** for raw event inspection
+- **`logs-system.auth*`** as the primary index pattern used for detection rules
+- **KQL** for event-query rules
+- **EQL** for correlation-based SSH rules
 
----
-
-## Design Philosophy
-
-Detection engineering must be:
-
-- Evidence-driven
-- Testable
-- Tunable
-- Controlled
-- Aligned to realistic attack behavior
-
-Rules were not blindly enabled from prebuilt templates.
-
-Instead, each detection rule was:
-
-1. Designed based on observed endpoint telemetry
-2. Tested using controlled lab activity
-3. Validated in Security → Alerts
-4. Tuned where necessary to reduce false positives
-5. Re-tested after refinement
-
-Raw journald/system authentication logs were inspected to understand field mappings and log structure before finalizing detection logic.
-
-> Principle: Detection must be engineered and validated — not assumed.
+This phase depended directly on the outcome of Phase 01. The endpoint had already been enrolled, logs were visible, and the `system.auth` dataset had been confirmed as a reliable telemetry source for Linux-focused detections.
 
 ---
 
-## Detection Rules Implemented
+## 3. Design Philosophy
 
-The following custom Linux detection rules were engineered, tested, and validated during Phase 02.
+This phase followed an evidence-first detection engineering approach.
 
----
+The rules were not added just to increase the rule count. Each one had to satisfy a more useful standard:
 
-### Rule 01 – Linux Sudo Usage Monitoring
+- it had to map to activity that could reasonably matter in a SOC context
+- it had to be grounded in telemetry actually present in the lab
+- it had to be testable using controlled endpoint actions
+- it had to produce a reviewable alert in Elastic Security
+- it had to remain understandable enough to explain and defend
 
-**Purpose:** Detect sudo session usage on the Ubuntu endpoint.
+The phase also intentionally included a mix of rule types:
 
-**Detection Logic (Initial):**  
-`event.dataset: "system.auth" AND host.os.type: "linux" AND process.name: "sudo" AND event.action: "logged-on"`
+- **single-event query rules** for direct high-signal activity such as user creation or sudo group changes
+- **event correlation rules** for SSH attack patterns that cannot be reliably modeled as one isolated event
 
-**Tuned Logic (Noise Reduction Applied):**  
-`event.dataset: "system.auth" AND host.os.type: "linux" AND process.name: "sudo" AND event.action: "logged-on" AND NOT message: "*by saed(uid=*"`
-
-**Goal:** Monitor privilege usage activity while reducing expected administrative noise.
-
----
-
-### Rule 02 – Failed SSH Authentication Attempts
-
-**Purpose:** Detect brute force or unauthorized SSH login attempts.
-
-**Detection Logic:**  
-`event.dataset: "system.auth" AND message: "Failed password"`
-
-**Goal:** Detect authentication failures that may indicate credential abuse or brute force attempts.
+That distinction is important. A strong detection phase is not just about writing queries. It is about choosing the correct detection method for the behavior being modeled.
 
 ---
 
-### Rule 03 – New User Account Creation
+## 4. Definition of What Makes the Phase Done
 
-**Purpose:** Detect potential persistence via creation of new local user accounts.
+Phase 02 is considered complete only when all of the following are true:
 
-**Detection Logic (Process-Based):**  
-`event.dataset: "system.auth" AND process.name: "useradd"`
+- the Elastic detection engine is operational
+- each planned custom rule has been created successfully
+- each rule shows successful execution
+- controlled test activity causes the expected alert to fire
+- the resulting alerts contain the expected host and event context
+- the detection logic reflects the actual endpoint telemetry observed in Discover
+- the endpoint is returned to a clean state after testing where appropriate
 
-**Alternate Pattern Observed:**  
-`event.dataset: "system.auth" AND message: "new user"`
-
-**Goal:** Detect privilege escalation or persistence through account creation.
-
----
-
-### Rule 04 – User Deletion Monitoring
-
-**Purpose:** Detect account removal that may indicate anti-forensics behavior or cleanup activity.
-
-**Detection Logic:**  
-`event.dataset: "system.auth" AND process.name: "userdel"`
-
-**Goal:** Detect suspicious user removal events.
+This standard matters because later AI triage is only useful if the underlying alerts are worth triaging in the first place.
 
 ---
 
-### Rule 05 – Refined Sudo Privilege Escalation Detection
+## 5. Validation Commands or Tests
 
-This rule represents the final tuned version of sudo monitoring with noise reduction applied.
+The following controlled activities were used to validate the rules built in this phase.
 
-**Detection Logic (Final Version):**  
-`event.dataset: "system.auth" AND host.os.type: "linux" AND process.name: "sudo" AND event.action: "logged-on" AND NOT message: "*by saed(uid=*"`
+### Rule 01 — Suspicious Linux User Creation (Lab)
 
-**Goal:** Detect privilege escalation activity while excluding trusted administrative behavior.
+**Purpose**  
+Detect creation of new local user accounts on the Linux endpoint, which may indicate persistence or unauthorized account provisioning after compromise.
 
----
+**Rule type**  
+Query rule
 
-## Definition of Done (Phase 02)
+**Detection logic**  
+Monitors the `system.auth` dataset for process-based user creation activity using `useradd`.
 
-Phase 02 is complete only when the following are verified:
+**Validation activity**  
+Created a test user on the Ubuntu endpoint to trigger account creation telemetry.
 
-### Detection Engine Operational
+**What was confirmed**
+- the raw event was visible in the source telemetry
+- the rule executed successfully
+- Elastic Security generated the expected alert
+- the alert correctly tied the activity to `ubuntu-endpoint-1`
 
-- Elastic Security application enabled
-- All custom rules successfully created
-- Rule execution status shows “Succeeded”
-- No rule execution failures observed
+### Rule 02 — Suspicious Linux Sudo Group Modification (Lab)
 
-### Alert Generation Validated
+**Purpose**  
+Detect modification of Linux group membership involving the `sudo` group, which may indicate privilege escalation or persistence through administrative access assignment.
 
-- Controlled test activity triggers alerts
-- Alerts visible in Security → Alerts
-- Alerts contain correct host association
-- Severity and risk scores reflect escalation impact
+**Rule type**  
+Query rule
 
-### Rule Tuning Verified
+**Detection logic**  
+Looks for `usermod` activity involving the `sudo` group within the `system.auth` dataset.
 
-- Initial noise identified where applicable
-- Detection logic refined to reduce false positives
-- Alerts still trigger under simulated suspicious activity
+**Validation activity**  
+Used a controlled group membership change to add a user into the `sudo` group.
 
-### Endpoint State Restored
-
-- Test accounts created during validation removed
-- Sudo group modifications reverted
-- Endpoint returned to clean baseline state
-
----
-
-## Validation Steps
-
-The following controlled tests were performed to validate detection capability.
-
-### Test 01 – Failed SSH Login
-
-Simulated failed SSH authentication attempts.
-
-Expected Result:
-- Event visible in Discover
-- Alert generated under Failed SSH Authentication rule
-
----
-
-### Test 02 – User Creation
-
-    sudo useradd labtestuser
-
-Expected Result:
-- Event visible in Discover
-- Alert generated under New User Account Creation rule
-
----
-
-### Test 03 – User Deletion
-
-    sudo userdel labtestuser
-
-Expected Result:
-- Event visible in Discover
-- Alert generated under User Deletion rule
-
----
-
-### Test 04 – Sudo Group Privilege Escalation
+**Validation command**
 
     sudo usermod -aG sudo eviluser1
 
-Expected Result:
-- Event visible in Discover
-- Alert generated under privilege escalation monitoring
+**What was confirmed**
+- the group modification event was present in the telemetry
+- the rule executed successfully
+- the corresponding alert was generated in Elastic Security
+- the alert represented a meaningful privilege-related change rather than generic system noise
+
+### Rule 03 — Suspicious Linux Sudo Privilege Escalation (Lab)
+
+**Purpose**  
+Detect successful sudo execution by a non-root user, which may indicate post-compromise privilege escalation or unauthorized administrative activity.
+
+**Rule type**  
+Query rule
+
+**Detection logic**  
+Monitors successful sudo session activity in `system.auth` and excludes known expected administrative noise where appropriate.
+
+**Validation activity**  
+Performed controlled sudo execution from the monitored endpoint.
+
+**What was confirmed**
+- sudo activity was present in the underlying logs
+- the rule executed successfully
+- a high-severity alert was generated
+- the alert showed the correct host and user context for review
+
+### Rule 04 — Internal Linux SSH Brute Force (Lab)
+
+**Purpose**  
+Detect repeated failed SSH login attempts from the same internal source IP against the same user within a short time window.
+
+**Rule type**  
+Event correlation rule
+
+**Detection logic**  
+Uses EQL sequence logic to identify five consecutive failed `ssh_login` authentication events within a defined maximum timespan.
+
+**Why correlation was used**  
+A brute-force pattern is not one event. It is a repeated sequence of related failed attempts. Modeling that behavior as a correlation rule is more appropriate than trying to detect it with a single-event query.
+
+**Validation activity**  
+Generated repeated failed SSH login attempts in a controlled test sequence.
+
+**What was confirmed**
+- the failed authentication events were present in the telemetry
+- the EQL sequence rule executed successfully
+- the brute-force pattern produced the expected medium-severity alert
+
+### Rule 05 — Linux SSH Brute Force Followed by Successful Login (Lab)
+
+**Purpose**  
+Detect a higher-risk sequence in which repeated failed SSH logins are followed by a successful login from the same source IP and user, indicating possible credential compromise.
+
+**Rule type**  
+Event correlation rule
+
+**Detection logic**  
+Uses EQL to identify five failed `ssh_login` events followed by a successful `ssh_login` event from the same source and user within the configured time window.
+
+**Why this rule matters**  
+This rule is stronger than simple failed-login monitoring because it attempts to detect a pattern that looks more like successful attacker progression: repeated failures, then access gained.
+
+**Validation activity**  
+Performed repeated failed SSH attempts followed by a successful login in the lab.
+
+**What was confirmed**
+- the full sequence existed in the raw event data
+- the rule executed successfully
+- Elastic Security generated the expected high-severity alert
+- the alert captured a multi-event attack story rather than one isolated log entry
 
 ---
 
-### Test 05 – Sudo Session Activity
+## 6. Evidence Collection / Screenshots
 
-    sudo ls
+### 6.1 Rule 01 — User creation
 
-Expected Result:
-- Alert generated under Sudo Monitoring rule
-- After tuning, alert suppressed for trusted administrative activity
+**Alert evidence**
+
+![Rule 01 User Creation Alert](../evidence/phase-02-detection-engineering/rule01-user-creation-alert.png)
+
+**Configuration evidence**
+
+![Rule 01 User Creation Config](../evidence/phase-02-detection-engineering/rule01-user-creation-config.png)
+
+### 6.2 Rule 02 — Sudo group modification
+
+**Alert evidence**
+
+![Rule 02 Sudo Group Alert](../evidence/phase-02-detection-engineering/rule02-sudo-group-alert.png)
+
+**Configuration evidence**
+
+![Rule 02 Sudo Group Config](../evidence/phase-02-detection-engineering/rule02-sudo-group-config.png)
+
+### 6.3 Rule 03 — Sudo privilege escalation
+
+**Alert evidence**
+
+![Rule 03 Sudo Privilege Escalation Alert](../evidence/phase-02-detection-engineering/rule03-sudo-priv-esc-alert.png)
+
+**Configuration evidence**
+
+![Rule 03 Sudo Privilege Escalation Config](../evidence/phase-02-detection-engineering/rule03-sudo-priv-esc-config.png)
+
+### 6.4 Rule 04 — SSH brute force
+
+**Alert evidence**
+
+![Rule 04 SSH Brute Force Alert](../evidence/phase-02-detection-engineering/rule04-ssh-bruteforce-alert.png)
+
+**Configuration evidence**
+
+![Rule 04 SSH Brute Force Config](../evidence/phase-02-detection-engineering/rule04-ssh-bruteforce-config.png)
+
+### 6.5 Rule 05 — SSH brute force followed by successful login
+
+**Alert evidence**
+
+![Rule 05 SSH Brute Force Success Alert](../evidence/phase-02-detection-engineering/rule05-ssh-bruteforce-success-alert.png)
+
+**Configuration evidence**
+
+![Rule 05 SSH Brute Force Success Config](../evidence/phase-02-detection-engineering/rule05-ssh-bruteforce-success-config.png)
+
+### What the evidence set proves overall
+
+Taken together, the Phase 02 evidence proves that:
+
+- custom Linux detection rules were successfully implemented in Elastic Security
+- both query-based and correlation-based detections were validated
+- controlled endpoint activity produced the intended alert behavior
+- rule definitions and resulting alerts were both documented
+- the project had moved from simple telemetry visibility into true detection capability
 
 ---
 
-## Evidence Collection
+## 7. Engineering Discipline Note
 
-Evidence for Phase 02 must include the following:
+This phase was important because it forced the project to earn the right to proceed.
 
-- Screenshot of each detection rule configuration (all five rules)
-- Screenshot of alert triggered for each rule
-- Screenshot of Security → Alerts view showing rule metadata
-- Screenshot showing rule execution status (“Succeeded”)
-- Screenshot of Discover view validating raw event structure
+It is easy to claim a SOC lab exists once logs are visible. It is harder, and more meaningful, to show that detections were deliberately engineered, tested, and validated against the actual telemetry available in the environment.
 
-All evidence files are stored in:
+That is the discipline Phase 02 established:
 
-    projects/02-ai-assisted-soc-lab/evidence/phase-02-detection-engineering/
+- detections were based on observed data, not vague assumptions
+- rule logic matched the available Linux telemetry
+- multi-event attack patterns were modeled with correlation where appropriate
+- each detection had evidence for both its definition and its output
 
----
+By the end of this phase, the lab no longer had only visibility. It had a working, evidence-backed detection layer that could support analyst review and later AI-assisted triage.
 
-## Engineering Discipline Note
-
-Phase 02 is not considered complete based on alert creation alone.
-
-It is complete only when:
-
-- Detection rules execute successfully
-- Alerts are validated in Security → Alerts
-- Raw logs are inspected and understood
-- Noise is analyzed and tuned responsibly
-- Alert lifecycle workflow is verified
-- Evidence is documented and stored
-
-Detection must be proven functional before AI automation is introduced.
-
-A SOC without validated detection logic is not operational.
