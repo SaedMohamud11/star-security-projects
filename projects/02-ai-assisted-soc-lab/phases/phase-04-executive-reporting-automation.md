@@ -290,7 +290,7 @@ Evidence for Phase 04 must include the following:
 
 All evidence files are stored in:
 
-    projects/02-openclaw-soc/evidence/phase-04-executive-reporting-automation/
+    projects/02-ai-assisted-soc-lab/evidence/phase-04-executive-reporting-automation/
 
 ---
 

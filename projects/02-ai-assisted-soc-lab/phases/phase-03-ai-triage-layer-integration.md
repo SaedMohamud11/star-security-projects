@@ -292,7 +292,7 @@ Evidence for Phase 03 must include the following:
 
 All evidence files are stored in:
 
-    projects/02-openclaw-soc/evidence/phase-03-ai-triage-layer-integration/
+    projects/02-ai-assisted-soc-lab/evidence/phase-03-ai-triage-layer-integration/
 
 ---
 

@@ -151,7 +151,7 @@ Evidence for Phase 01 must include the following:
 
 All evidence files are stored in:
 
-    projects/02-openclaw-soc/evidence/
+    projects/02-ai-assisted-soc-lab/evidence/
 
 ---
 

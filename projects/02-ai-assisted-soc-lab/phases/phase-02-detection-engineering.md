@@ -229,7 +229,7 @@ Evidence for Phase 02 must include the following:
 
 All evidence files are stored in:
 
-    projects/02-openclaw-soc/evidence/phase-02-detection-engineering/
+    projects/02-ai-assisted-soc-lab/evidence/phase-02-detection-engineering/
 
 ---
 
