@@ -1,312 +1,221 @@
 # Phase 04 – Executive Reporting Automation
 
-## Objective
+## 1. Phase Objective
 
-Extend the AI triage layer into a usable executive reporting and operator messaging workflow.
+Extend the validated AI-assisted triage layer into a usable operator-facing reporting workflow that can be accessed from a mobile device.
 
-This phase focuses on:
+The purpose of this phase was to expose the SOC assistant through a simple command-driven interface using Flask, Twilio WhatsApp, and ngrok. Rather than requiring the operator to sit inside Kibana or run local scripts manually, this phase made it possible to request alert status, recent alert context, investigation-oriented output, and a short SOC summary directly through WhatsApp.
 
-- Exposing a Flask webhook for inbound WhatsApp commands
-- Integrating Twilio WhatsApp messaging with the SOC management node
-- Using ngrok to securely tunnel the local Flask service for webhook testing
-- Returning command-driven SOC outputs to a mobile device
-- Delivering concise alert summaries, investigation notes, and executive briefings through WhatsApp
-- Proving end-to-end communication from user request to SOC response
-
-The purpose of this phase is not to automate final analyst judgment.
-
-The purpose is to make validated Elastic detections and AI-assisted summaries available in a fast, operator-friendly format.
+This phase did not introduce autonomous case handling or final analyst decision-making. Its purpose was narrower and more practical: provide a clean delivery layer for the triage functions built in Phase 03.
 
 ---
 
-## Executive Reporting Environment Overview
+## 2. Environment Overview at the Time of the Phase
 
-The executive reporting workflow was implemented on **VM 200 – SOC-MGMT** and connected the following components:
+At the time of this phase, the lab environment consisted of:
 
-- **Flask application**
-- **Twilio WhatsApp Sandbox / Messaging**
+- **VM 200 – soc-mgmt**  
+  Hosted the Flask application, command routing logic, and the existing AI-assisted triage functions
+
+- **VM 201 – elastic-node**  
+  Continued to serve as the source of alerts, detections, and endpoint log context
+
+- **VM 202 – ubuntu-endpoint-1**  
+  Continued to generate the endpoint activity that could appear in alert and summary outputs
+
+### Core components used in this phase
+
+- **Flask**
+- **Twilio WhatsApp integration**
 - **ngrok HTTPS tunnel**
-- **Custom command router in `soc_bot.py`**
-- **AI triage functions imported from `elastic_poller.py`**
+- **Custom Python bot logic in `soc_bot.py`**
+- **Triage and retrieval functions from `elastic_poller.py`**
 
-### Primary Script
-
-` soc_bot.py `
-
-### Supported Commands
+### Supported commands
 
 - `check alerts`
 - `soc summary`
 - `last alert`
 - `investigate`
 
-### Webhook Route
+### Webhook route
 
 - `/whatsapp`
 
----
-
-## Design Philosophy
-
-Security outputs are only valuable if they can be delivered clearly and quickly.
-
-This phase was designed around three principles:
-
-- readability
-- responsiveness
-- operator control
-
-The delivery layer does not replace Elastic, and it does not replace analyst decision-making.
-
-Instead, it acts as the presentation and interaction layer for the existing SOC workflow.
-
-This keeps the architecture grounded:
-
-- Elastic remains the detection platform
-- Python remains the orchestration layer
-- OpenAI remains the summarization layer
-- Twilio WhatsApp becomes the operator delivery layer
-
-> Principle: Reporting automation should reduce friction, not reduce analyst ownership.
+This phase built directly on the prior phase. The triage functions already existed. The work here was to expose them through a mobile-friendly interaction path and validate that the end-to-end delivery chain functioned correctly.
 
 ---
 
-## Messaging Workflow Implemented
+## 3. Design Philosophy
 
-The following workflow was implemented and validated:
+This phase followed a delivery-layer philosophy: keep the operator interaction simple, keep the data source grounded, and keep the automation honest.
 
-1. User sends a WhatsApp command
-2. Twilio forwards the inbound message to the Flask webhook
-3. ngrok tunnels the HTTPS request to the SOC management node
-4. `soc_bot.py` parses the command
-5. The matching function in `elastic_poller.py` is executed
-6. Elastic data is retrieved and optionally summarized by OpenAI
-7. Flask builds the outbound response
-8. Twilio returns the message back to WhatsApp
-9. The operator receives the SOC output on mobile
+The design principles were:
 
----
+- **make validated SOC outputs easier to access**
+- **keep the command set small and predictable**
+- **format responses for mobile readability**
+- **separate the messaging layer from the detection layer**
+- **avoid overstating the implementation as autonomous security operations**
 
-## Core Reporting Functions
+That means the messaging workflow should be understood as a controlled presentation layer:
 
-### Flask Webhook Handling
+- Elastic remains the detection and alert source
+- the triage logic remains in the Python assistant layer
+- Flask handles inbound command processing
+- Twilio and WhatsApp provide operator delivery
+- ngrok is used for lab-friendly HTTPS webhook exposure
 
-The Flask application listens for POST requests at:
-
-`/whatsapp`
-
-The webhook receives the inbound WhatsApp message body and normalizes it for command matching.
-
-Operational value:
-
-- Creates a live interaction point for the SOC workflow
-- Allows mobile-first command execution
-- Keeps the interface simple and easy to demonstrate
+This was intentionally designed as a lab integration, not a production messaging service.
 
 ---
 
-### Command Routing
+## 4. Definition of What Makes the Phase Done
 
-The bot routes inbound text commands to the correct backend function.
+Phase 04 is considered complete only when all of the following are true:
 
-Mapped commands:
+- the Flask bot application starts successfully on the SOC management node
+- ngrok exposes the local webhook over HTTPS
+- inbound WhatsApp commands reach the Flask route successfully
+- command routing maps each supported command to the correct backend function
+- responses are returned successfully to WhatsApp
+- outputs are readable on a mobile device
+- the full path from phone request to SOC response is demonstrated with evidence
 
-- `check alerts` → `check_alerts()`
-- `soc summary` → `soc_summary()`
-- `last alert` → `last_alert()`
-- `investigate` → `investigate()`
-
-Operational value:
-
-- Gives the operator predictable command-driven access
-- Keeps the interface intentionally small and testable
-- Supports future expansion without changing the delivery model
+This standard matters because a reporting layer is only valuable if it reliably exposes real SOC data and remains usable under the conditions it was designed for.
 
 ---
 
-### Message Splitting Logic
+## 5. Validation Commands or Tests
 
-A `split_message()` helper was implemented to keep outgoing responses readable and within practical message length constraints.
+The following checks were used to validate the executive reporting workflow introduced in this phase.
 
-Behavior:
+### Test 1 — Confirm the Flask application runs
 
-- preserve formatting where possible
-- split on paragraph breaks, line breaks, or spaces
-- keep responses under the configured character limit
+Started `soc_bot.py` on the SOC management node and confirmed the application bound successfully to port `5000`.
 
-Operational value:
+**What this validated**
+- the reporting interface could start successfully
+- the bot was ready to receive webhook traffic
+- the application layer was available for end-to-end testing
 
-- Prevents large outputs from becoming unreadable
-- Improves reliability of message delivery
-- Makes summaries suitable for phone-based review
+### Test 2 — Confirm ngrok forwarding is active
 
----
+Started ngrok and verified that it exposed the local Flask service through a public HTTPS forwarding URL.
 
-### ngrok Tunnel Exposure
+**What this validated**
+- the local lab service could be reached by Twilio over HTTPS
+- the webhook path could be tested without deploying public infrastructure
+- the lab had a working inbound tunnel for WhatsApp command handling
 
-An ngrok tunnel was used to expose the local Flask app running on port `5000` to Twilio over HTTPS.
+### Test 3 — Confirm `check alerts` command works
 
-Operational value:
+Sent the `check alerts` command through WhatsApp and verified that the bot returned the current open-alert state.
 
-- enabled rapid webhook testing without public infrastructure
-- allowed the SOC-MGMT node to receive live external webhook traffic
-- made it possible to validate the WhatsApp workflow end-to-end
+**What this validated**
+- inbound message delivery worked
+- command routing worked
+- the bot could respond with current SOC alert status in a readable format
 
----
+### Test 4 — Confirm `last alert` command works
 
-## High-Level Executive Reporting Flow
+Sent the `last alert` command and verified that the most recent Elastic alert could be returned in a readable, mobile-friendly summary.
 
-    User sends WhatsApp command
-        ↓
-    Twilio receives inbound message
-        ↓
-    ngrok forwards request to SOC-MGMT
-        ↓
-    Flask webhook receives POST /whatsapp
-        ↓
-    soc_bot.py routes command
-        ↓
-    elastic_poller.py retrieves and analyzes data
-        ↓
-    Response is formatted and split if needed
-        ↓
-    Twilio sends WhatsApp reply
-        ↓
-    User receives SOC report on phone
+**What this validated**
+- alert retrieval remained functional through the messaging layer
+- the operator could access a quick alert briefing from the phone interface
 
----
+### Test 5 — Confirm `investigate` command works
 
-## Definition of Done (Phase 04)
+Sent the `investigate` command and verified that the bot returned a short analyst-oriented investigation note.
 
-Phase 04 is complete only when the following are verified:
+**What this validated**
+- the investigation support workflow from Phase 03 was exposed successfully through WhatsApp
+- the response remained recommendation-oriented and readable on mobile
 
-### Webhook Delivery Verified
+### Test 6 — Confirm `soc summary` command works
 
-- Flask is reachable locally on port `5000`
-- ngrok exposes the local Flask app over HTTPS
-- Twilio is configured to send inbound WhatsApp requests to the ngrok URL
-- POST requests successfully reach `/whatsapp`
+Sent the `soc summary` command and verified that a recent SOC briefing could be returned using recent alert and endpoint context.
 
-### Command Execution Verified
-
-- `check alerts` returns the expected open-alert output
-- `soc summary` returns a recent SOC executive briefing
-- `last alert` returns the most recent alert explanation
-- `investigate` returns a short analyst note
-
-### Mobile Messaging Verified
-
-- Responses are visible in WhatsApp
-- Message text is readable on mobile
-- Long responses are split safely when needed
-- No malformed command output is returned
-
-### End-to-End Integration Verified
-
-- Twilio, ngrok, Flask, and Elastic all operate together
-- AI-generated summaries are returned successfully
-- The operator can issue commands from a phone and receive valid SOC responses
-- The workflow is suitable for demonstration and documentation purposes
+**What this validated**
+- the summary workflow was available through the reporting interface
+- the operator could request a concise management-style view of the environment from mobile
 
 ---
 
-## Validation Steps
+## 6. Evidence Collection / Screenshots
 
-The following checks were used to validate the executive reporting automation layer.
+### 6.1 Flask bot running
 
-### Test 01 – Flask Service Running
+![Flask SOC Bot Running](../evidence/phase-04-executive-reporting-automation/phase04-flask-soc-bot-running.png)
 
-Start the Flask application on the SOC-MGMT node.
+**What this proves**
+- the Flask application started successfully on the SOC management node
+- the reporting service was actively listening on port `5000`
 
-Expected Result:
-- Flask binds to `0.0.0.0:5000`
-- The app is reachable locally
-- No startup errors prevent webhook handling
+### 6.2 ngrok forwarding active
 
----
+![ngrok Forwarding](../evidence/phase-04-executive-reporting-automation/phase04-ngrok-forwarding.png)
 
-### Test 02 – ngrok Tunnel Active
+**What this proves**
+- a public HTTPS forwarding path existed for webhook delivery
+- inbound traffic could be forwarded from Twilio to the local Flask service
 
-Launch ngrok against local port `5000`.
+### 6.3 WhatsApp `check alerts` response
 
-Expected Result:
-- A public HTTPS forwarding URL is created
-- Incoming requests are visible in the ngrok session
-- The tunnel forwards traffic to the local Flask app
+![WhatsApp Check Alerts](../evidence/phase-04-executive-reporting-automation/phase04-whatsapp-check-alerts.png)
 
----
+**What this proves**
+- the `check alerts` command was received and processed successfully
+- current alert state could be delivered in a simple mobile-friendly format
 
-### Test 03 – Twilio Webhook POST Delivery
+### 6.4 WhatsApp `investigate` response
 
-Send a WhatsApp message to the Twilio-connected number.
+![WhatsApp Investigate](../evidence/phase-04-executive-reporting-automation/phase04-whatsapp-investigate.png)
 
-Expected Result:
-- Twilio issues a POST request to `/whatsapp`
-- Flask logs a successful `200` response
-- The command body is received correctly by the application
+**What this proves**
+- the investigation-oriented triage function was exposed successfully through the messaging layer
+- the operator could request a quick analyst-style note from the phone interface
 
----
+### 6.5 WhatsApp `last alert` response
 
-### Test 04 – Command Response Validation
+![WhatsApp Last Alert](../evidence/phase-04-executive-reporting-automation/phase04-whatsapp-last-alert.png)
 
-Execute each supported command from WhatsApp.
+**What this proves**
+- the most recent alert could be retrieved and summarized through the reporting workflow
+- alert context remained readable outside the Kibana interface
 
-Commands tested:
+### 6.6 WhatsApp `soc summary` response
 
-- `check alerts`
-- `soc summary`
-- `last alert`
-- `investigate`
+![WhatsApp SOC Summary](../evidence/phase-04-executive-reporting-automation/phase04-whatsapp-soc-summary.png)
 
-Expected Result:
-- Each command maps to the correct backend function
-- A valid response is returned to WhatsApp
-- Outputs remain concise and readable
+**What this proves**
+- recent environment context could be packaged into a concise executive-style briefing
+- the reporting layer was capable of delivering more than just single-alert output
 
----
+### What the evidence set proves overall
 
-### Test 05 – Executive Summary Delivery
+Taken together, the Phase 04 evidence proves that:
 
-Run the `soc summary` command against recent alert and endpoint data.
-
-Expected Result:
-- A management-style SOC summary is returned
-- The output includes date/time and relevant environment context
-- The summary is suitable for quick operational review on mobile
+- the Flask, ngrok, Twilio, and triage components were integrated successfully
+- command-driven SOC interaction was functioning end to end
+- validated alert and summary outputs could be delivered to a mobile device
+- the project had progressed from analyst-assist logic into operator-facing reporting automation
 
 ---
 
-## Evidence Collection
+## 7. Engineering Discipline Note
 
-Evidence for Phase 04 must include the following:
+This phase mattered because it turned the triage layer into something usable without pretending it was something more than it was.
 
-- Screenshot of Flask running `soc_bot.py`
-- Screenshot of ngrok showing active forwarding to port `5000`
-- Screenshot of successful POST requests to `/whatsapp`
-- Screenshot of WhatsApp response for `check alerts`
-- Screenshot of WhatsApp response for `soc summary`
-- Screenshot of WhatsApp response for `last alert`
-- Screenshot of WhatsApp response for `investigate`
+It would have been easy to describe this as a fully automated SOC interface, but that would not be accurate. What was actually built was a disciplined lab reporting workflow: the operator sends a small set of known commands, the bot retrieves real SOC data, and the response is returned in a readable mobile format.
 
-All evidence files are stored in:
+That discipline is what keeps the phase credible:
 
-    projects/02-ai-assisted-soc-lab/evidence/phase-04-executive-reporting-automation/
+- the reporting layer is downstream of validated detections
+- the outputs are grounded in real Elastic data
+- the command paths are deterministic
+- the messaging workflow improves accessibility without replacing analyst judgment
 
----
+By the end of this phase, the project had a complete lab demonstration flow: endpoint activity, Elastic detections, AI-assisted triage, and operator-facing mobile reporting.
 
-## Engineering Discipline Note
-
-Phase 04 is not complete just because a chatbot replies on a phone.
-
-It is complete only when:
-
-- the webhook path is functioning reliably
-- the reported content is grounded in real Elastic data
-- command routing is deterministic
-- response formatting is readable
-- delivery is validated end-to-end
-- evidence is preserved for demonstration and review
-
-A messaging bot without validated SOC content is just a UI demo.
-
-A messaging bot that returns validated SOC output is an operational reporting layer.
